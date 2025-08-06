@@ -1,34 +1,39 @@
-import os
-import telegram
 from flask import Flask, request
-
-# Получаем токен из переменных окружения
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TOKEN:
-    raise ValueError("❌ Переменная окружения TELEGRAM_BOT_TOKEN не установлена.")
-
-bot = telegram.Bot(token=TOKEN)
+import requests
+import os
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return "✅ Upwise Bot is running."
+TELEGRAM_BOT_TOKEN = '7211128542:AAHS5pOPucvsRT0512ca1d3VTMVecez32zI'
+TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
 
-@app.route(f'/{TOKEN}', methods=['POST'])
-def webhook():
-    update = telegram.Update.de_json(request.get_json(force=True), bot)
+@app.route('/', methods=['POST'])
+def telegram_webhook():
+    data = request.get_json()
 
-    chat_id = update.message.chat.id
-    text = update.message.text or ""
+    if 'message' in data:
+        chat_id = data['message']['chat']['id']
+        message_text = data['message'].get('text', '')
 
-    if text.strip().lower() == "/start":
-        bot.send_message(chat_id=chat_id, text="Привет! Я бот платформы Upwise 👋")
+        if message_text.startswith('/'):
+            handle_command(chat_id, message_text)
+        else:
+            send_message(chat_id, f"Вы написали: {message_text}")
+
+    return '', 200
+
+def handle_command(chat_id, command):
+    if command == '/status':
+        send_message(chat_id, "✅ Бот работает. Upwise Assistant на связи.")
+    elif command == '/help':
+        send_message(chat_id, "📋 Доступные команды:\n/status — проверить статус\n/help — список команд")
     else:
-        bot.send_message(chat_id=chat_id, text=f"Вы написали: {text}")
+        send_message(chat_id, f"Неизвестная команда: {command}")
 
-    return "ok"
+def send_message(chat_id, text):
+    url = f'{TELEGRAM_API_URL}/sendMessage'
+    payload = {'chat_id': chat_id, 'text': text}
+    requests.post(url, json=payload)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
