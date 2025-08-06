@@ -2,27 +2,31 @@ import os
 import telegram
 from flask import Flask, request
 
-TOKEN = os.environ.get("BOT_TOKEN")  # безопасно через переменные среды
+# Получаем токен из переменных окружения
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # ключевой момент: точное имя переменной
+
+if not TOKEN:
+    raise ValueError("❌ Переменная окружения TELEGRAM_BOT_TOKEN не установлена.")
+
 bot = telegram.Bot(token=TOKEN)
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "Upwise Bot is alive!"
+    return "✅ Upwise Bot is running."
 
-@app.route(f"/{TOKEN}", methods=["POST"])
-def respond():
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
     update = telegram.Update.de_json(request.get_json(force=True), bot)
 
     chat_id = update.message.chat.id
-    message_text = update.message.text
+    text = update.message.text or ""
 
-    # Простая реакция
-    if message_text.lower() == "/start":
+    if text.strip().lower() == "/start":
         bot.send_message(chat_id=chat_id, text="Привет! Я бот платформы Upwise 👋")
     else:
-        bot.send_message(chat_id=chat_id, text="Вы написали: " + message_text)
+        bot.send_message(chat_id=chat_id, text=f"Вы написали: {text}")
 
     return "ok"
 
